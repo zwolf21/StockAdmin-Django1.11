@@ -1,0 +1,318 @@
+{% extends "stock_invest/base.html" %}
+{% load widget_tweaks %}
+
+{% block invest_title %} 
+{% if form.instance.commiter %}
+<h3>재고조사결과 {{ form.instance.slug }}</h3> 
+{% else %}
+<h4>재고조사 {{ form.instance.slug }}(진행중)</h4> 
+{% endif %}
+{% endblock invest_title %}
+
+{% block invest_style %} 
+<style type="text/css">
+	table, td input {
+		width: 100%;
+	}
+	table {
+		border-collapse: collapse;
+	}
+	input[type=number] {
+		text-align: right;
+	}
+	th {
+		text-align: center;
+	}
+	tr.disabled, tr.disabled input {
+		background: #bbbbbb;
+	}
+	tbody tr:hover *{ background: #f3e8c0; }
+</style>
+
+{% endblock %}
+{% block invest_form %}
+
+<div class="container-fluid">
+	<div class="row">
+		{% if form.instance.commiter %}
+		<h4 style="display: inline-block">조사일자: {{ form.instance.date|date:"Y-m-d" }}</h4> (확인자: {{ form.instance.commiter }})
+		<table class="container-fluid" id="tbl-invest">
+					<thead>
+						<tr>
+							<th width="50" rowspan="2">연번</th>
+							<th rowspan="2">약품명</th>
+							<th width="80" rowspan="2">포장수량</th>
+							<th width="80" rowspan="2">낱개1</th>
+							<th width="80" rowspan="2">낱개2</th>
+							<th width="80" rowspan="2">반티</th>
+							<th width="50" rowspan="2">실사량</th>
+							{% if formset.0.instance.drug.invest_class == '마약류' %}	
+							<th width="50" rowspan="2">전산</th>
+							<th width="50" colspan="5">차이의 역사</th>
+							{% else %}
+							<th width="100" rowspan="2">유효기한</th>
+							{% endif %}
+							<th width="150" rowspan="2">최종수정일</th>
+							<th width="150" rowspan="2">완료일시</th>
+						</tr>
+						{% if formset.0.instance.drug.invest_class == '마약류' %}	
+						<tr>
+							<th>현재</th>
+							<th>{{ form.instance.previous_invest.date|date:"m/d" }}</th>
+							<th>{{ form.instance.previous_invest.previous_invest.date|date:"m/d" }}</th>
+							<th>{{ form.instance.previous_invest.previous_invest.previous_invest.date|date:"m/d" }}</th>
+							<th>{{ form.instance.previous_invest.previous_invest.previous_invest.previous_invest.date|date:"m/d" }}</th>
+						</tr>
+						{% endif %}
+					</thead>
+					<tbody>
+					{% for form in formset %}
+						<tr>
+							<td align="center">{{ forloop.counter }}</td>
+							<td>{{ form.instance.drug.name_as }}</td>
+							<td>{{ form.instance.pkg|default:"" }} </td>
+							<td>{{ form.instance.rest1|default:"" }}</td>
+							<td>{{ form.instance.rest2|default:"" }}</td>
+							<td>{{ form.instance.rest3|default:"" }}</td>
+							<td style="text-align: right;">{{ form.instance.total }}</td>
+							{% if formset.0.instance.drug.invest_class == '마약류' %}	
+							<td style="text-align: right;">{{ form.instance.doc_amount|default:"" }}</td>
+							<td style="text-align: right;">{{ form.instance.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.previous_item.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.previous_item.previous_item.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.previous_item.previous_item.previous_item.stock_diff }}</td>
+							{% else %}
+							<td>{{ form.instance.expire }}</td>
+							{% endif %}
+							<td>{{ form.instance.updated|date:"Y-m-d h:i:s" }}</td>
+							<td>{{ form.instance.completed|date:"Y-m-d h:i:s" }}</td>
+						</tr>
+					{% endfor %}	
+					</tbody>
+				</table>
+		{% else %}
+		<form class="form-inline" method="post" action=".">
+			{% csrf_token %}
+			<input type="text" name="lastFocus" id="last-focus" hidden>
+			<div class="row">
+				<div class="col-xs-6">
+					<div class="form-group">
+						{{ form.date.label_tag }} {{ form.date|attr:"class:form-control input-sm" }}
+					</div>
+				</div>
+				<div align="right" class="col-xs-6">
+					<div class="btn-group">
+						{% if formset.0.instance.drug.invest_class == '마약류' %}	
+						<button type="button" class="btn btn-warning" id="btn-sync-opstock">전산과동기화<span class="glyphicon glyphicon-repeat"></span></button>
+						{% endif %}
+						<button type="button" class="btn btn-success" 
+							onclick="javascript:window.open('{% url 'stock_invest:invest-item-print' formset.instance.slug %}', 'pop1', 'width=1000, height=700, left=600, top=200, scrollbars=no, toolbars=no, location=no')">
+							재고표인쇄 <span class="glyphicon glyphicon-print"></span>
+						</button>
+					<button type="submit" class="btn btn-success">변경사항저장<span class="glyphicon glyphicon-floppy-save"></span></button>
+					</div>
+				</div>
+			</div>
+			<hr>
+			<div class="row">
+				{{ formset.management_form }}
+				<table class="container-fluid" id="tbl-invest">
+					<thead>
+						<tr>
+							<th width="50" rowspan="2">완료<input type="checkbox" id="complete-all"></th>
+							<th rowspan="2">약품명</th>
+							<th width="80" rowspan="2">포장수량</th>
+							<th width="80" rowspan="2">낱개1</th>
+							<th width="80" rowspan="2">낱개2</th>
+							<th width="80" rowspan="2">반티</th>
+							<th width="50" rowspan="2">실사량</th>
+							{% if formset.0.instance.drug.invest_class == '마약류' %}	
+							<th width="50" rowspan="2">전산</th>
+							<th width="50" colspan="5">차이의 역사</th>
+							{% else %}
+							<th width="100" rowspan="2">유효기한</th>
+							{% endif %}
+							<th width="150" rowspan="2">수정일시</th>
+							<th width="150" rowspan="2">완료일시</th>
+							<th rowspan="2">삭제</th>
+						</tr>
+						{% if formset.0.instance.drug.invest_class == '마약류' %}	
+						<tr>
+							<th>현재</th>
+							<th>{{ form.instance.previous_invest.date|date:"m/d" }}</th>
+							<th>{{ form.instance.previous_invest.previous_invest.date|date:"m/d" }}</th>
+							<th>{{ form.instance.previous_invest.previous_invest.previous_invest.date|date:"m/d" }}</th>
+							<th>{{ form.instance.previous_invest.previous_invest.previous_invest.previous_invest.date|date:"m/d" }}</th>
+						</tr>
+						{% endif %}
+					</thead>
+					<tbody>
+					{% for form in formset %}
+						{{ form.id }}
+						<tr>
+							<td>{{ form.complete|attr:"class:complete"|attr:"tabindex:-1" }}</td>
+							<td>{{ form.instance.drug.name_as }}</td>
+							<td>{{ form.pkg|attr:"min:0"|attr:"class:pkg-amount" }}</td>
+							<td>{{ form.rest1|attr:"min:0" }}</td>
+							<td>{{ form.rest2|attr:"min:0"|attr:"tabindex:-1" }}</td>
+							<td>{{ form.rest3|attr:"min:0" }}</td>
+							<td style="text-align: right;">{{ form.instance.total }}</td>
+							{% if formset.0.instance.drug.invest_class == '마약류' %}	
+							<td style="text-align: right;">{{ form.instance.doc_amount }}</td>
+							<td style="text-align: right;">{{ form.instance.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.previous_item.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.previous_item.previous_item.stock_diff }}</td>
+							<td style="text-align: right;">{{ form.instance.previous_item.previous_item.previous_item.previous_item.stock_diff }}</td>
+							{% else %}
+							<td>{{ form.expire|attr:"tabindex:-1" }}</td>
+							{% endif %}
+							<td>{{ form.instance.updated|date:"Y-m-d h:i:s" }}</td>
+							<td>{{ form.instance.completed|date:"Y-m-d h:i:s" }}</td>
+							<td>{{ form.DELETE|attr:"tabindex:-1" }}</td>
+						</tr>
+					{% endfor %}	
+					</tbody>
+				</table>
+			</div>
+		</form>
+	</div>
+	<div class="row" align="right">
+		<form method="post" action="{% url 'stock_invest:invest-system-opsync' %}" id="form-sync-opstock">
+			{% csrf_token %}
+			<input type="hidden" name="syncSlug" value="{{ formset.instance.slug }}">
+		</form>
+	</div>
+	{% endif %}
+
+	<br>
+
+	<div class="row" align="right">
+		<div class="col-xs-6">
+			<a href="{{ object.previous_invest.get_absolute_url }}" class="btn btn-success"><span class="glyphicon glyphicon-triangle-left"></span>이전꺼보기</a>
+			<a href="{{ object.next_invest.get_absolute_url }}" class="btn btn-success">다음꺼보기<span class="glyphicon glyphicon-triangle-right"></span></a>
+		</div>
+		<div class="col-xs-6">
+			<button class="btn btn-danger" data-target="#modal-invest-delete" data-toggle="modal">재고표폐기<span class="glyphicon glyphicon-trash"></span></button>
+			{% include "stock_invest/invest_delete_modal.html" %}
+			{% if form.instance.complete_late == '100%' and form.instance.commiter == None %}
+			<button class="btn btn-danger btn-ok" data-target="#modal-invest-confirm" data-toggle="modal">재고확정 <span class="glyphicon glyphicon-ok"></span></button>
+			{% include "stock_invest/invest_confirm_modal.html" %}
+			{% endif %}
+		</div>
+	</div>
+</div>
+{% endblock invest_form %}
+
+{% block invest_script %}
+<script type="text/javascript">
+$(function()
+{
+	// 완료항목 비활성화상태로 초기화 작업
+	const initial_disabled_rows = $('.complete:checked').parent().parent()
+	initial_disabled_rows.addClass('disabled')
+	// initial_disabled_rows.find('input[type!=checkbox]').attr('disabled', 'true')
+
+	{% if lastFocus %}
+	$("#"+"{{ lastFocus }}").focus()
+	{% endif %}
+
+	$('table input').focus(function(){
+		$('#last-focus').val($(this).attr('id'))
+	})
+
+
+	// 완료 체크박스 전체 선택 
+	$('#complete-all').click(function(){
+		if($('#complete-all').is(':checked'))
+		{
+			$('.complete').each(function(){
+				$(this).prop('checked',true);
+			});
+		}
+		else
+		{
+			$('.complete').each(function(){
+				$(this).prop('checked',false);
+			});
+		}
+	})
+
+	// pkg 컨트롤 step 속성에 포장단위 동기화
+	$('.temp-pkg').each(function(){
+		$(this).next().attr('step', $(this).val())
+	})
+
+	$('#btn-sync-opstock').click(function(){
+		$('#form-sync-opstock').submit()
+	})
+
+	// 키보드 컨트롤
+	$('tr input[type=number]').keydown(function(event){
+		var cell = $(this)
+		var row = cell.parents('tr')
+		var nrow = row.parent().children('tr').index(row)
+		var keyCode = event.keyCode
+		if (keyCode == 32){
+			var target=row.children('td').children('input.complete')
+			target.prop('checked', !target.is(':checked'))
+	
+		} else if (keyCode == 37 || keyCode == 39) {
+			var rowInputs = row.children('td').children('input[type=number]')
+			c = rowInputs
+			i = cell
+			var idx = rowInputs.index(cell)
+			idx = keyCode == 37 ? Math.max(idx -1, 0) : Math.min(idx+1, rowInputs.length-1)
+			var target = rowInputs[idx]
+			target.focus()
+			target.select()
+
+		} else if (keyCode == 38 || keyCode == 40) {
+			var rowInputs = row.children('td').children('input[type=number]')
+			var colIdx = rowInputs.index(cell)
+
+			if(keyCode == 38) {
+				if (nrow==0) {
+					return false
+				}
+				var prevRow = row.prevAll('tr').first()
+				var prevRowInputs = prevRow.children('td').children('input[type=number]')
+				var target = prevRowInputs[colIdx]
+			}else {
+				var nextRow = row.nextAll('tr').first()
+				var nextRowInputs = nextRow.children('td').children('input[type=number]')
+				var target = nextRowInputs[colIdx]
+			}
+			target.focus()
+
+		} else if (keyCode == 109 || keyCode == 107) {
+			var cur_val = cell.val()
+			var step = cell.attr('step') || 10
+	 
+     		if(keyCode==107){
+     			var new_val = cur_val*1 + step*1
+	     		cell.val(new_val)
+     		
+     		}else{
+     			var new_val = cur_val*1 - step*1
+     			if(new_val >= 0){
+     				cell.val(new_val)
+     			}
+     		}
+     	
+		} else{
+			console.log(keyCode)
+			return true
+		}
+		return false
+	})
+
+})
+
+</script>
+
+{% include "datepicker_js.html" %}
+{% endblock invest_script %}
+
+

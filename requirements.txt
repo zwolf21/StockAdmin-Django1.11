@@ -1,0 +1,14 @@
+beautifulsoup4==4.6.0
+bs4==0.0.1
+Django==1.11.2
+django-filter==1.0.4
+django-widget-tweaks==1.4.1
+djangorestframework==3.6.3
+Markdown==2.6.8
+python-dateutil==2.6.0
+pytz==2017.2
+recordlib==0.0.8
+six==1.10.0
+xlrd==1.0.0
+XlsxWriter==0.9.6
+xlwt==1.2.0

@@ -1,0 +1,207 @@
+{% extends "buy/base.html" %}
+
+{% block buy_style %}
+	<style type="text/css">
+		  .ui-effects-transfer {
+    border: 1px solid green;
+  }
+	</style>
+{% endblock buy_style %}		
+{% block buy_title %}
+	<h3 style="display: inline;">주문 입력</h3>
+{% endblock buy_title %}
+{% block buy_header %}
+	{{ uptodate_form.date }}
+	<button class="btn btn-primary" name="uptobuy">발주서로 올리기</button>
+	<a class="btn btn-warning" href="{% url 'info:predict_week_tv' %}" name="predict">구매누락주의산출</a>
+	<hr>
+{% endblock buy_header %}
+
+{% block buy_table %}
+	{% if pkgInc %}
+		<input type="checkbox" id="chk-pkgAmt" checked="checked">포장단위 입력
+	{% else %}
+		<input type="checkbox" id="chk-pkgAmt">포장단위 입력
+	{% endif %}
+	<table class="tablesorter" id="mytable">
+			<thead>
+				<tr nrow="0">
+					<th>전체<input type="checkbox" name="checkall" id="checkall"></th>
+					<th>거래처</th>
+					<th>약품명</th>
+					<th>요구수량</th>
+					<th>포장단위</th>
+					<th>미입고량</th>
+					<th>주간평균입고량</th>
+					<th>최종입고일/수량</th>
+					<th>비고</th>
+				</tr>
+			</thead>
+			<tbody>	
+			{% for buyitem in object_list %}
+				<tr nrow={{ buyitem.pk }}>
+					<td><input id="{{ buyitem.pk }}" type="checkbox" name="checklist" /></td>
+					<td>{{ buyitem.drug.account }}</td>
+					<td>{{ buyitem.drug }}</td>
+					<form class="save" action="{% url 'buy:buyitem_update' buyitem.pk %}" method="post">
+					<td >
+						{% csrf_token %}
+						{% if pkgInc %}
+							<input  type="number" name="amount" value="{{ buyitem.amount }}" min="{{ buyitem.drug.pkg_amount }}" step="{{ buyitem.drug.pkg_amount }}">
+						{% else %}
+							<input  type="number" name="amount" value="{{ buyitem.amount }}">
+						{% endif %}
+					</td>
+					<td>{{ buyitem.drug.pkg_amount }}</td>
+					{% if buyitem.drug.total_incomplete_amount > 0 %}
+					<td style="background-color: #f3e8c0">{{ buyitem.drug.total_incomplete_amount }}</td>
+					{% else %}
+					<td>{{ buyitem.drug.total_incomplete_amount }}</td>
+					{% endif %}
+					<td>{{ buyitem.drug.weekly_avg_stockin }}</td>
+					<td>{{ buyitem.drug.last_stockin_date|date:"Y-m-d" }}{% if buyitem.drug.last_stockin_date %}/{% endif %}{{ buyitem.drug.last_stockin_amount }}</td>
+					<td><input type="text" name="comment" value="{{ buyitem.comment }}" maxlength="30"></td>
+					<input type="submit" hidden>
+					</form>
+				</tr>
+			{% endfor %}
+				<tr>
+					<td></td>
+					<td>{{ buyitem.drug.account }}</td>
+					{% block post2 %}
+					<form action="{% url 'buy:buyitem_add' %}" method="post" name="add">
+					{% endblock post2 %}
+						{% csrf_token %}
+						{% if slug %}
+						<input type="hidden" name="slug" value="{{ slug }}">
+						{% endif %}
+						<td><div class="ui-widget"><input type="text" id="id_name" name="name" onclick="this.select();"></div></td>
+						<td>
+							{% if pkgInc %}
+								<input id="auto_amount" name="amount" type="number">
+							{% else %}
+								<input id="manual_amount" name="amount" type="number">
+							{% endif %}
+							<input type="submit" value="입력">
+						</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						{# <td><input type="text" name="comment" id="id_comment" tabindex="-1"></td> #}
+						<td>{{ add_form.comment }}</td>
+					</form>
+					{% block script %}
+						<script> document.getElementById('id_name').select(); </script>
+					{% endblock script %}
+				</tr>
+			</tbody>
+	</table>
+
+			{% if slug %}
+				<a class="btn btn-default" href="{% url 'buy:buy_detail' slug %}">수정완료</a>
+			{% endif %}
+{% endblock buy_table %}
+
+
+
+{% block buy_script %}
+{# {% include "tablesorter_js.html" %} #}
+{% include "auto_scroll_js.html" %}
+{% include "ajax_autocomplete_script.html" %}
+<script>
+	$(function()
+	{
+
+		$('#chk-pkgAmt').click(function(){
+			if($(this).is(':checked')){
+				location.search = 'pkgInc=on'
+			}else{
+				location.search = ''
+			}
+		})
+		// if (location.search === '?pkgOn=on')
+		// {
+		// 	$('#chk-pkgAmt').prop('checked', true)
+		// }else{
+		// 	$('#chk-pkgAmt').prop('checked', false)
+		// }
+
+
+		// $('#chk-pkgAmt').click(function(){
+		// 	if($(this).is(':checked'))
+		// 	{
+		// 		$('#auto_amount, [name=amount]').each(function(){
+		// 			var pkgAmt = $(this).attr('pkg-amount')
+		// 			$(this).attr('step', pkgAmt)
+		// 			$(this).attr('min', pkgAmt)
+		// 		})
+		// 		location.search = '?pkgOn=on'
+
+		// 	}else{
+				
+		// 		$('#auto_amount, [name=amount]').attr('step', 1)
+		// 		$('#auto_amount, [name=amount]').attr('min', 1)
+		// 		location.search = ''
+		// 	}
+		// })
+
+		$('.tablesorter th input').click(function(){
+			if($('.tablesorter th input').is(':checked'))
+			{
+				$('input[name=checklist]').each(function(){
+					$(this).prop('checked',true);
+				});
+			}
+			else
+			{
+				$('input[name=checklist]').each(function(){
+					$(this).prop('checked',false);
+				});
+			}
+		})
+
+		$('[name=uptobuy]').click(function()
+		{
+
+			var checked_list = []
+			var date = $('#id_date').val()
+
+			$(":checkbox[name='checklist']:checked").each(function(pi,po)
+			{
+				checked_list.push($(po).attr('id'))
+			});
+
+			$.ajax({
+				url : "{% url 'buy:buy_gen' %}",
+				type : 'get',
+				dataType:'json',
+				data : {date:date, pk_list: JSON.stringify(checked_list)},
+				success: function(rsp){
+					for (var i = 0; i < rsp.length; i++) 
+					{
+						var n = rsp[i]
+						var elm = $('[nrow='+n+']')
+
+						// elm.effect( "transfer", { to: $("div") }, 1000 );
+						elm.transfer({to: $('[name=uptobuy]'), duration: 100 });
+						elm.remove()
+					}
+				}
+			})
+
+		})
+
+
+	})
+
+</script>
+
+
+{% endblock buy_script %}
+{% block footer %}
+<div id="footer" style="display: block; height: 1200px;">
+	&nbsp;
+</div>
+
+{% endblock footer %}
